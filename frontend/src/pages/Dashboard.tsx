@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import axios from 'axios';
 import TaskCard from '../components/TaskCard';
 
 type Task = {
-  id: string;
+  _id: string;
   title: string;
   description: string;
   dueDate: string;
@@ -16,31 +17,63 @@ function Dashboard() {
   const [dueDate, setDueDate] = useState('');
   const [filter, setFilter] = useState<'all' | 'pending' | 'completed'>('all');
 
-  const handleAddTask = (e: React.FormEvent) => {
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/tasks';
+
+  // Fetch tasks on mount
+  useEffect(() => {
+    fetchTasks();
+  }, []);
+
+  const fetchTasks = async () => {
+    try {
+      const res = await axios.get(API_URL);
+      setTasks(res.data);
+    } catch (err) {
+      console.error('Failed to fetch tasks:', err);
+    }
+  };
+
+  const handleAddTask = async (e: React.FormEvent) => {
     e.preventDefault();
-    const newTask: Task = {
-      id: Date.now().toString(),
-      title,
-      description,
-      dueDate,
-      completed: false,
-    };
-    setTasks([...tasks, newTask]);
-    setTitle('');
-    setDescription('');
-    setDueDate('');
+    try {
+      const res = await axios.post(API_URL, {
+        title,
+        description,
+        dueDate,
+        completed: false,
+      });
+      setTasks([...tasks, res.data]);
+      setTitle('');
+      setDescription('');
+      setDueDate('');
+    } catch (err) {
+      console.error('Failed to add task:', err);
+    }
   };
 
-  const handleToggleComplete = (id: string) => {
-    setTasks(
-      tasks.map((task) =>
-        task.id === id ? { ...task, completed: !task.completed } : task
-      )
-    );
+  const handleToggleComplete = async (id: string) => {
+    const task = tasks.find((t) => t._id === id);
+    if (!task) return;
+
+    try {
+      const res = await axios.put(`${API_URL}/${id}`, {
+        completed: !task.completed,
+      });
+      setTasks(
+        tasks.map((t) => (t._id === id ? res.data : t))
+      );
+    } catch (err) {
+      console.error('Failed to toggle task:', err);
+    }
   };
 
-  const handleDelete = (id: string) => {
-    setTasks(tasks.filter((task) => task.id !== id));
+  const handleDelete = async (id: string) => {
+    try {
+      await axios.delete(`${API_URL}/${id}`);
+      setTasks(tasks.filter((task) => task._id !== id));
+    } catch (err) {
+      console.error('Failed to delete task:', err);
+    }
   };
 
   const filteredTasks = tasks.filter((task) => {
@@ -85,8 +118,11 @@ function Dashboard() {
       <div className="task-list">
         {filteredTasks.map((task) => (
           <TaskCard
-            key={task.id}
-            task={task}
+            key={task._id}
+            task={{
+              ...task,
+              id: task._id // to support the expected `id` prop in TaskCard
+            }}
             onToggleComplete={handleToggleComplete}
             onDelete={handleDelete}
           />
@@ -97,4 +133,3 @@ function Dashboard() {
 }
 
 export default Dashboard;
-
