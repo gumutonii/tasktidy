@@ -17,12 +17,15 @@ function Dashboard() {
   const [dueDate, setDueDate] = useState('');
   const [filter, setFilter] = useState<'all' | 'pending' | 'completed'>('all');
 
-  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/tasks';
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/tasks';
 
   // Fetch tasks on mount
   useEffect(() => {
-    fetchTasks();
-  }, []);
+  fetch("http://localhost:8000/api/tasks")
+    .then(res => res.json())
+    .then(data => setTasks(data));
+}, []);
+
 
   const fetchTasks = async () => {
     try {
