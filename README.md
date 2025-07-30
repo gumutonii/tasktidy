@@ -30,19 +30,6 @@ TaskTidy is a full-stack task management application built with a React frontend
 - Infrastructure as Code with Terraform
 - Azure App Service deployment
 
----
-
-## Architecture
-
-```mermaid
-graph TD
-  A[Frontend (React/Vite)] --API Calls--> B[Backend (Express/Node.js)]
-  B --MongoDB Driver--> C[MongoDB Atlas]
-  A --Docker--> D[Azure App Service]
-  B --Docker--> D
-  D --Terraform--> E[Azure Infrastructure]
-```
-
 ## Local Development
 
 ### Prerequisites
@@ -56,7 +43,7 @@ graph TD
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/yourusername/tasktidy.git
+git clone https://github.com/gumutonii/tasktidy.git
 cd tasktidy
 ```
 
