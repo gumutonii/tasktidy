@@ -1,53 +1,167 @@
-#!/bin/bash
+# TaskTidy
 
-# TaskTidy Project Setup Script
-echo "🚀 Setting up TaskTidy project structure..."
+TaskTidy is a full-stack task management application built with a React frontend, Node.js/Express backend, MongoDB Atlas for data storage, and deployed using Docker containers on Azure App Service. Infrastructure as code is managed with Terraform. 
 
-# Create necessary directories
-mkdir -p terraform screenshots docs backend frontend
+---
 
-# Create Terraform directory structure
+## Table of Contents
+
+- [Features](#features)
+- [Architecture](#architecture)
+- [Project Structure](#project-structure)
+- [Local Development](#local-development)
+- [Environment Variables](#environment-variables)
+- [Deployment](#deployment)
+- [Terraform Usage](#terraform-usage)
+- [Docker Usage](#docker-usage)
+- [Troubleshooting](#troubleshooting)
+
+
+---
+
+## Features
+
+- User registration and authentication (JWT)
+- Create, update, delete, and filter tasks
+- Responsive React frontend (Vite)
+- RESTful API backend (Express + TypeScript)
+- MongoDB Atlas cloud database
+- Dockerized for local and cloud deployment
+- Infrastructure as Code with Terraform
+- Azure App Service deployment
+
+---
+
+## Architecture
+
+```mermaid
+graph TD
+  A[Frontend (React/Vite)] --API Calls--> B[Backend (Express/Node.js)]
+  B --MongoDB Driver--> C[MongoDB Atlas]
+  A --Docker--> D[Azure App Service]
+  B --Docker--> D
+  D --Terraform--> E[Azure Infrastructure]
+```
+
+## Local Development
+
+### Prerequisites
+
+- [Node.js](https://nodejs.org/) (v18+)
+- [Docker](https://www.docker.com/)
+- [Terraform](https://www.terraform.io/)
+- [Azure CLI](https://docs.microsoft.com/en-us/cli/azure/install-azure-cli)
+- [MongoDB Atlas](https://www.mongodb.com/cloud/atlas)
+
+### 1. Clone the repository
+
+```bash
+git clone https://github.com/yourusername/tasktidy.git
+cd tasktidy
+```
+
+### 2. Set up environment variables
+
+Create `.env` files in both `backend/` and `frontend/` directories.
+
+**backend/.env**
+```
+MONGO_URI=your_mongodb_atlas_connection_string
+PORT=5000
+NODE_ENV=development
+JWT_SECRET=your_jwt_secret
+FRONTEND_URL=https://tasktidy-frontend-gumutoni.azurewebsites.net
+```
+
+**frontend/.env**
+```
+VITE_API_URL=https://tasktidy-backend-gumutoni.azurewebsites.net
+NODE_ENV=development
+```
+
+### 3. Run locally with Docker Compose
+
+```bash
+docker-compose up --build
+```
+```bash
+# for production
+- Frontend: [http://localhost:5713](http://localhost:5713)
+- Backend: [http://localhost:5000/api](http://localhost:5000/api)
+```
+
+## Environment Variables
+
+**Backend**
+- `MONGO_URI`: MongoDB Atlas connection string
+- `PORT`: Port for Express server (default: 5000)
+- `NODE_ENV`: Environment (development/production)
+- `JWT_SECRET`: Secret for JWT authentication
+- `FRONTEND_URL`: URL of the frontend (for CORS)
+
+**Frontend**
+- `VITE_API_URL`: URL of the backend API 
+- `NODE_ENV`: Environment (development/production)
+
+> **Note:** In Azure App Service, set these variables in the App Service Configuration, not in `.env` files.
+
+---
+
+## Deployment
+
+### 1. Build and Push Docker Images
+
+```bash
+# Backend
+cd backend
+docker build -t yourdockerhub/tasktidy-backend:latest .
+docker push yourdockerhub/tasktidy-backend:latest
+
+# Frontend
+cd ../frontend
+docker build -t yourdockerhub/tasktidy-frontend:latest .
+docker push yourdockerhub/tasktidy-frontend:latest
+```
+
+### 2. Provision Azure Infrastructure with Terraform
+
+```bash
 cd terraform
-mkdir -p modules
+terraform init
+terraform apply -auto-approve
+```
 
-# Go back to root
-cd ..
+### 3. Restart Azure App Services (if needed)
 
-# Create environment files from templates
-if [ ! -f backend/.env ]; then
-    echo "📝 Creating backend environment file..."
-    cp backend/.env.example backend/.env
-    echo "✏️  Please edit backend/.env with your configuration"
-fi
+```bash
+az webapp restart --name tasktidy-backend-gumutoni --resource-group tasktidy-devops
+az webapp restart --name tasktidy-frontend-gumutoni --resource-group tasktidy-devops
+```
 
-if [ ! -f frontend/.env ]; then
-    echo "📝 Creating frontend environment file..."
-    cp frontend/.env.example frontend/.env
-    echo "✏️  Please edit frontend/.env with your configuration"
-fi
+---
 
-# Create Terraform variables file
-if [ ! -f terraform/terraform.tfvars ]; then
-    echo "📝 Creating Terraform variables file..."
-    cp terraform/terraform.tfvars.example terraform/terraform.tfvars
-    echo "✏️  Please edit terraform/terraform.tfvars with your values"
-fi
+## Terraform Usage
 
-# Make scripts executable
-chmod +x deploy.sh
-chmod +x setup-tasktidy.sh
+- All Terraform state and sensitive files are excluded via `.gitignore`.
+- Update environment variables in `main.tf` as needed.
+- Outputs will provide the deployed URLs for frontend and backend.
 
-echo "✅ TaskTidy project setup complete!"
-echo ""
-echo "Next steps:"
-echo "1. Edit backend/.env with your MongoDB and API configuration"
-echo "2. Edit frontend/.env with your API endpoint"
-echo "3. Edit terraform/terraform.tfvars with your AWS configuration"
-echo "4. Test locally with: docker-compose up --build"
-echo "5. Deploy infrastructure with: cd terraform && terraform apply"
-echo "6. Deploy application with: ./deploy.sh"
-echo ""
-echo "📋 MongoDB Notes:"
-echo "- Local development uses MongoDB container"
-echo "- Production uses AWS DocumentDB (MongoDB-compatible)"
-echo "- Mongo Express available at http://localhost:8081 in dev mode"
+---
+
+## Docker Usage
+
+- Both frontend and backend are multi-stage Docker builds.
+- The frontend is served via Nginx on port 80 (required for Azure).
+- The backend exposes port 5000.
+
+---
+
+## Troubleshooting
+
+- **Frontend "Application Error"**: Ensure the Dockerfile exposes port 80 and the Nginx config does not proxy to a Docker network host.
+- **Backend MongoDB Timeout**: Make sure your MongoDB Atlas cluster allows connections from Azure App Service IPs or `0.0.0.0/0` for testing.
+- **CORS Issues**: Ensure `FRONTEND_URL` is set correctly in backend environment variables.
+- **Environment Variables Not Working**: In Azure, set them in the App Service Configuration, not in `.env` files.
+- **Container Not Updating**: Restart the App Service after pushing a new Docker image.
+
+
