@@ -17,40 +17,73 @@ function Dashboard() {
   const [dueDate, setDueDate] = useState('');
   const [filter, setFilter] = useState<'all' | 'pending' | 'completed'>('all');
 
-  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/tasks';
+  // Get API URL from environment or construct from current location
+  const getApiUrl = () => {
+    // Try to get from Vite environment variable first
+    const viteApiUrl = import.meta.env.VITE_API_URL;
+    if (viteApiUrl) {
+      return viteApiUrl;
+    }
+    
+    // If not available, construct from current location
+    const currentOrigin = window.location.origin;
+    if (currentOrigin.includes('azurewebsites.net')) {
+      // For Azure deployment, construct backend URL
+      const frontendHostname = window.location.hostname;
+      const backendHostname = frontendHostname.replace('frontend', 'backend');
+      return `https://${backendHostname}/api/tasks`;
+    }
+    
+    // Fallback to localhost
+    return 'http://localhost:5000/api/tasks';
+  };
+
+  const API_URL = getApiUrl();
 
   // Fetch tasks on mount
   useEffect(() => {
-  fetch("http://localhost:8000/api/tasks")
-    .then(res => res.json())
-    .then(data => setTasks(data));
-}, []);
-
-
-  const fetchTasks = async () => {
-    try {
-      const res = await axios.get(API_URL);
-      setTasks(res.data);
-    } catch (err) {
-      console.error('Failed to fetch tasks:', err);
-    }
-  };
+    const fetchTasks = async () => {
+      try {
+        console.log('🔍 Fetching tasks from:', API_URL);
+        const res = await axios.get(API_URL);
+        console.log('✅ Tasks fetched successfully:', res.data);
+        setTasks(res.data);
+      } catch (err: any) {
+        console.error('❌ Failed to fetch tasks:', err);
+        console.error('🔍 Error details:', {
+          message: err.message,
+          status: err.response?.status,
+          statusText: err.response?.statusText,
+          url: API_URL
+        });
+      }
+    };
+    
+    fetchTasks();
+  }, [API_URL]);
 
   const handleAddTask = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      console.log('📝 Adding task:', { title, description, dueDate });
       const res = await axios.post(API_URL, {
         title,
         description,
         dueDate,
         completed: false,
       });
+      console.log('✅ Task added successfully:', res.data);
       setTasks([...tasks, res.data]);
       setTitle('');
       setDescription('');
       setDueDate('');
-    } catch (err) {
-      console.error('Failed to add task:', err);
+    } catch (err: any) {
+      console.error('❌ Failed to add task:', err);
+      console.error('🔍 Error details:', {
+        message: err.message,
+        status: err.response?.status,
+        statusText: err.response?.statusText
+      });
     }
   };
 
@@ -59,23 +92,37 @@ function Dashboard() {
     if (!task) return;
 
     try {
+      console.log('🔄 Toggling task completion:', id);
       const res = await axios.put(`${API_URL}/${id}`, {
         completed: !task.completed,
       });
+      console.log('✅ Task updated successfully:', res.data);
       setTasks(
         tasks.map((t) => (t._id === id ? res.data : t))
       );
-    } catch (err) {
-      console.error('Failed to toggle task:', err);
+    } catch (err: any) {
+      console.error('❌ Failed to toggle task:', err);
+      console.error('🔍 Error details:', {
+        message: err.message,
+        status: err.response?.status,
+        statusText: err.response?.statusText
+      });
     }
   };
 
   const handleDelete = async (id: string) => {
     try {
+      console.log('🗑️ Deleting task:', id);
       await axios.delete(`${API_URL}/${id}`);
+      console.log('✅ Task deleted successfully:', id);
       setTasks(tasks.filter((task) => task._id !== id));
-    } catch (err) {
-      console.error('Failed to delete task:', err);
+    } catch (err: any) {
+      console.error('❌ Failed to delete task:', err);
+      console.error('🔍 Error details:', {
+        message: err.message,
+        status: err.response?.status,
+        statusText: err.response?.statusText
+      });
     }
   };
 
