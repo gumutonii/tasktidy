@@ -8,28 +8,33 @@ function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+  const LOGIN_URL = `${API_BASE.replace(/\/$/, '')}/api/auth/login`;
 
   const handleLogin = async (e: React.FormEvent) => {
-  e.preventDefault();
-
-  try {
-    const res = await axios.post('http://localhost:5000/api/auth/login', {
-      email,
-      password,
-    });
-
-    // ✅ Only if token is received
-    if (res.data.token) {
-      localStorage.setItem('token', res.data.token);
-      localStorage.setItem('user', JSON.stringify(res.data.user));
-      navigate('/dashboard');
-    } else {
-      setError('Login failed: No token received.');
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+    try {
+      const res = await axios.post(LOGIN_URL, { email, password });
+      if (res.data.token) {
+        localStorage.setItem('token', res.data.token);
+        localStorage.setItem('user', JSON.stringify(res.data.user));
+        navigate('/dashboard');
+      } else {
+        setError('Login failed: No token received.');
+      }
+    } catch (err: any) {
+      setError(
+        err.response?.data?.message ||
+        'Login failed. Please check your credentials and try again.'
+      );
+    } finally {
+      setLoading(false);
     }
-  } catch (err: any) {
-    setError(err.response?.data?.message || 'Login failed');
-  }
-};
+  };
 
   return (
     <div className="login-container">
@@ -42,6 +47,7 @@ function Login() {
           required
           value={email}
           onChange={(e) => setEmail(e.target.value)}
+          disabled={loading}
         />
         <input
           type="password"
@@ -49,8 +55,11 @@ function Login() {
           required
           value={password}
           onChange={(e) => setPassword(e.target.value)}
+          disabled={loading}
         />
-        <button type="submit">Login</button>
+        <button type="submit" disabled={loading}>
+          {loading ? 'Logging in...' : 'Login'}
+        </button>
         <p>
           Do not have an account? <Link to="/register">Register here</Link>
         </p>
