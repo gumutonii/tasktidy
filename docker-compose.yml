@@ -1,24 +1,35 @@
-version: "3.8"
-
 services:
-  mongo:
-    image: mongo
-    container_name: mongo-db
+  tasktidy-frontend:
+    container_name: tasktidy-frontend
+    image: umuton/tasktidy-frontend:latest
+    ports:
+      - "5713:5713"
+    environment:
+      - NODE_ENV=development
+      - VITE_API_URL=http://tasktidy-backend:5000
+    depends_on:
+      - tasktidy-backend
+
+  tasktidy-backend:
+    container_name: tasktidy-backend
+    image: umuton/tasktidy-backend:latest
+    ports:
+      - "5000:5000"
+    environment:
+      - MONGO_URI=mongodb://tasktidy-mongo:27017/tasktidy
+      - PORT=5000
+    depends_on:
+      - tasktidy-mongo
+
+  tasktidy-mongo:
+    container_name: tasktidy-mongo
+    image: mongo:latest
     ports:
       - "27017:27017"
     volumes:
-      - mongo-data:/data/db
-
-  backend:
-    build:
-      context: ./backend
-    container_name: backend-service
-    ports:
-      - "8000:5000"
-    depends_on:
-      - mongo
+      - mongo_data:/data/db
     environment:
-      - MONGO_URI=mongodb://mongo:27017/tasktidy
+      - MONGO_INITDB_DATABASE=tasktidy
 
 volumes:
-  mongo-data:
+  mongo_data:
