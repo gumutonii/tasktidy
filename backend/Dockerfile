@@ -1,20 +1,17 @@
-# Use an official Node.js image
-FROM node:18
+FROM node:18-alpine
 
-# Set the working directory
 WORKDIR /app
-
-# Copy package.json and package-lock.json
 COPY package*.json ./
-
-# Install dependencies
 RUN npm install
-
-# Copy the rest of the backend code
 COPY . .
 
-# Expose the port your app runs on
-EXPOSE 5000
+# Build TypeScript to JavaScript
+RUN npm run build
 
-# Run the app in development mode
-CMD ["npm", "run", "dev"]
+# Environment variables (can be overridden in docker-compose)
+ENV PORT=5000
+ENV MONGO_URI=mongodb://mongo:27017/tasktidy
+ENV NODE_ENV=production
+
+EXPOSE 5000
+CMD ["npm", "start"] 
