@@ -62,7 +62,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 18
-          cache: 'npm'
 
       - name: Verify package.json files exist
         run: |
@@ -77,30 +76,28 @@ jobs:
           fi
           echo "✅ Package.json files found"
 
-      - name: Validate backend package.json
-        run: |
-          cd backend
-          echo "Validating backend package.json..."
-          npm run build --dry-run || echo "Backend package.json is valid"
 
-      - name: Validate frontend package.json
-        run: |
-          cd frontend
-          echo "Validating frontend package.json..."
-          npm run build --dry-run || echo "Frontend package.json is valid"
 
       - name: Install backend dependencies
         run: |
           cd backend
           echo "Installing backend dependencies..."
-          npm ci || npm install
+          if [ -f "package-lock.json" ]; then
+            npm ci
+          else
+            npm install
+          fi
         continue-on-error: true
 
       - name: Install frontend dependencies
         run: |
           cd frontend
           echo "Installing frontend dependencies..."
-          npm ci || npm install
+          if [ -f "package-lock.json" ]; then
+            npm ci
+          else
+            npm install
+          fi
         continue-on-error: true
 
       - name: Run npm audit on backend
@@ -146,13 +143,16 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 18
-          cache: 'npm'
 
       # Backend build and test
       - name: Install backend dependencies
         run: |
           cd backend
-          npm ci
+          if [ -f "package-lock.json" ]; then
+            npm ci
+          else
+            npm install
+          fi
 
       - name: Run backend tests
         run: |
@@ -177,7 +177,11 @@ jobs:
       - name: Install frontend dependencies
         run: |
           cd frontend
-          npm ci
+          if [ -f "package-lock.json" ]; then
+            npm ci
+          else
+            npm install
+          fi
 
       - name: Run frontend tests
         run: |
