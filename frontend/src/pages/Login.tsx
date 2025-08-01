@@ -26,11 +26,17 @@ function Login() {
       } else {
         setError('Login failed: No token received.');
       }
-    } catch (err: any) {
-      setError(
-        err.response?.data?.message ||
-        'Login failed. Please check your credentials and try again.'
-      );
+    } catch (err: unknown) {
+      if (axios.isAxiosError(err)) {
+        setError(
+          err.response?.data?.message ||
+          'Login failed. Please check your credentials and try again.'
+        );
+      } else if (err instanceof Error) {
+        setError('Login failed. Please try again.');
+      } else {
+        setError('An unknown error occurred during login.');
+      }
     } finally {
       setLoading(false);
     }

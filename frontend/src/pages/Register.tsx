@@ -25,11 +25,17 @@ function Register() {
       } else {
         setError('Registration failed. Please try again.');
       }
-    } catch (err: any) {
-      setError(
-        err.response?.data?.message ||
-        'Registration failed. Please check your input and try again.'
-      );
+    } catch (err: unknown) {
+      if (axios.isAxiosError(err)) {
+        setError(
+          err.response?.data?.message ||
+          'Registration failed. Please check your input and try again.'
+        );
+      } else if (err instanceof Error) {
+        setError('Registration failed. Please try again.');
+      } else {
+        setError('An unknown error occurred during registration.');
+      }
     } finally {
       setLoading(false);
     }
