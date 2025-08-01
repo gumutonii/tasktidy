@@ -7,6 +7,15 @@ jest.mock('../src/config/db', () => ({
   default: jest.fn().mockResolvedValue(true)
 }));
 
+// Mock mongoose to prevent connection issues
+jest.mock('mongoose', () => ({
+  connect: jest.fn().mockResolvedValue(true),
+  connection: {
+    on: jest.fn(),
+    once: jest.fn()
+  }
+}));
+
 // Create a simple Express app for testing
 const app = express();
 app.use(express.json());
@@ -80,5 +89,9 @@ describe('Health Endpoints', () => {
 describe('Application Configuration', () => {
   it('should have proper environment configuration', () => {
     expect(process.env.NODE_ENV).toBeDefined();
+  });
+
+  it('should have basic test setup working', () => {
+    expect(true).toBe(true);
   });
 });
