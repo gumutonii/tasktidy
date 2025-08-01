@@ -17,18 +17,20 @@ function Dashboard() {
   const [dueDate, setDueDate] = useState('');
   const [filter, setFilter] = useState<'all' | 'pending' | 'completed'>('all');
 
-  // Always use the base URL and append /api/tasks
   const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000';
   const TASKS_URL = `${API_BASE.replace(/\/$/, '')}/api/tasks`;
 
-  // Fetch tasks on mount
   useEffect(() => {
     const fetchTasks = async () => {
       try {
         const res = await axios.get(TASKS_URL);
         setTasks(res.data);
-      } catch (err: any) {
-        console.error('Failed to fetch tasks:', err);
+      } catch (err: unknown) {
+        if (axios.isAxiosError(err)) {
+          console.error('Failed to fetch tasks:', err.response?.data?.message || err.message);
+        } else {
+          console.error('An unexpected error occurred:', err);
+        }
       }
     };
     fetchTasks();
@@ -47,8 +49,12 @@ function Dashboard() {
       setTitle('');
       setDescription('');
       setDueDate('');
-    } catch (err: any) {
-      console.error('Failed to add task:', err);
+    } catch (err: unknown) {
+      if (axios.isAxiosError(err)) {
+        console.error('Failed to add task:', err.response?.data?.message || err.message);
+      } else {
+        console.error('An unexpected error occurred:', err);
+      }
     }
   };
 
@@ -60,8 +66,12 @@ function Dashboard() {
         completed: !task.completed,
       });
       setTasks(tasks.map((t) => (t._id === id ? res.data : t)));
-    } catch (err: any) {
-      console.error('Failed to toggle task:', err);
+    } catch (err: unknown) {
+      if (axios.isAxiosError(err)) {
+        console.error('Failed to toggle task:', err.response?.data?.message || err.message);
+      } else {
+        console.error('An unexpected error occurred:', err);
+      }
     }
   };
 
@@ -69,8 +79,12 @@ function Dashboard() {
     try {
       await axios.delete(`${TASKS_URL}/${id}`);
       setTasks(tasks.filter((task) => task._id !== id));
-    } catch (err: any) {
-      console.error('Failed to delete task:', err);
+    } catch (err: unknown) {
+      if (axios.isAxiosError(err)) {
+        console.error('Failed to delete task:', err.response?.data?.message || err.message);
+      } else {
+        console.error('An unexpected error occurred:', err);
+      }
     }
   };
 
@@ -116,7 +130,7 @@ function Dashboard() {
             key={task._id}
             task={{
               ...task,
-              id: task._id // to support the expected `id` prop in TaskCard
+              id: task._id
             }}
             onToggleComplete={handleToggleComplete}
             onDelete={handleDelete}
