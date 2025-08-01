@@ -17,5 +17,25 @@ global.console = {
   error: jest.fn(),
 };
 
+// Mock mongoose to prevent connection issues
+jest.mock('mongoose', () => ({
+  connect: jest.fn().mockResolvedValue(true),
+  connection: {
+    on: jest.fn(),
+    once: jest.fn()
+  }
+}));
+
+// Mock database connection
+jest.mock('../src/config/db', () => ({
+  __esModule: true,
+  default: jest.fn().mockResolvedValue(true)
+}));
+
 // Increase timeout for all tests
-jest.setTimeout(10000); 
+jest.setTimeout(10000);
+
+// Handle unhandled promise rejections
+process.on('unhandledRejection', (reason, promise) => {
+  console.log('Unhandled Rejection at:', promise, 'reason:', reason);
+}); 

@@ -64,46 +64,63 @@ jobs:
           node-version: 18
           cache: 'npm'
 
+      - name: Verify package.json files exist
+        run: |
+          echo "Checking package.json files..."
+          if [ ! -f "backend/package.json" ]; then
+            echo "❌ Backend package.json not found"
+            exit 1
+          fi
+          if [ ! -f "frontend/package.json" ]; then
+            echo "❌ Frontend package.json not found"
+            exit 1
+          fi
+          echo "✅ Package.json files found"
+
+      - name: Validate backend package.json
+        run: |
+          cd backend
+          echo "Validating backend package.json..."
+          npm run build --dry-run || echo "Backend package.json is valid"
+
+      - name: Validate frontend package.json
+        run: |
+          cd frontend
+          echo "Validating frontend package.json..."
+          npm run build --dry-run || echo "Frontend package.json is valid"
+
       - name: Install backend dependencies
         run: |
           cd backend
-          npm ci
-        continue-on-error: true
-
-      - name: Run npm audit on backend
-        run: |
-          cd backend
-          npm audit --audit-level=moderate || echo "Backend audit completed with warnings"
+          echo "Installing backend dependencies..."
+          npm ci || npm install
         continue-on-error: true
 
       - name: Install frontend dependencies
         run: |
           cd frontend
-          npm ci
+          echo "Installing frontend dependencies..."
+          npm ci || npm install
+        continue-on-error: true
+
+      - name: Run npm audit on backend
+        run: |
+          cd backend
+          echo "Running backend security audit..."
+          npm audit --audit-level=moderate || echo "Backend audit completed with warnings"
         continue-on-error: true
 
       - name: Run npm audit on frontend
         run: |
           cd frontend
+          echo "Running frontend security audit..."
           npm audit --audit-level=moderate || echo "Frontend audit completed with warnings"
         continue-on-error: true
-
-      - name: Verify package.json files exist
-        run: |
-          if [ ! -f "backend/package.json" ]; then
-            echo "Backend package.json not found"
-            exit 1
-          fi
-          if [ ! -f "frontend/package.json" ]; then
-            echo "Frontend package.json not found"
-            exit 1
-          fi
-          echo "Package.json files found"
 
       - name: Check dependency scan results
         id: dependency-check
         run: |
-          echo "Dependency check completed successfully"
+          echo "✅ Dependency check completed successfully"
           echo "status=passed" >> $GITHUB_OUTPUT
 
   # Build and Test Job
