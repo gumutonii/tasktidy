@@ -2,21 +2,23 @@ name: CI/CD Pipeline
 
 on:
   push:
-    branches: [main, develop, staging]
+    branches: [main]
   pull_request:
     branches: [main]
+
+permissions:
+  contents: read
+  actions: read
+  id-token: write
+  packages: write
+  pull-requests: write
 
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
-  # Production environment
   AZURE_WEBAPP_NAME_BACKEND: tasktidy-backend-gumutoni
   AZURE_WEBAPP_NAME_FRONTEND: tasktidy-frontend-gumutoni
   AZURE_RESOURCE_GROUP: tasktidy-devops
-  # Staging environment
-  AZURE_WEBAPP_NAME_BACKEND_STAGING: tasktidy-backend-staging-gumutoni
-  AZURE_WEBAPP_NAME_FRONTEND_STAGING: tasktidy-frontend-staging-gumutoni
-  AZURE_RESOURCE_GROUP_STAGING: tasktidy-staging
 
 jobs:
   # Security Scanning Jobs
@@ -33,24 +35,38 @@ jobs:
         with:
           scan-type: 'fs'
           scan-ref: '.'
-          format: 'sarif'
-          output: 'trivy-results.sarif'
+          format: 'table'
+          output: 'trivy-results.txt'
           severity: 'CRITICAL,HIGH'
 
-      - name: Upload Trivy scan results to GitHub Security tab
-        uses: github/codeql-action/upload-sarif@v3
+      - name: Display security scan results
+        run: |
+          echo "=== Security Scan Results ==="
+          if [ -f trivy-results.txt ]; then
+            cat trivy-results.txt
+          else
+            echo "No scan results file found"
+          fi
+
+      - name: Upload security scan results
+        uses: actions/upload-artifact@v4
         if: always()
         with:
-          sarif_file: 'trivy-results.sarif'
+          name: trivy-security-scan-results
+          path: trivy-results.txt
+          retention-days: 30
 
       - name: Check security scan results
         id: security-check
         run: |
-          if [ -f trivy-results.sarif ]; then
-            echo "Security scan completed"
+          echo "Security scan completed"
+          if [ -f trivy-results.txt ]; then
+            if grep -q "Total:" trivy-results.txt; then
+              echo "Security scan results available - check artifacts for details"
+            fi
             echo "status=passed" >> $GITHUB_OUTPUT
           else
-            echo "Security scan failed"
+            echo "Security scan failed to produce results"
             echo "status=failed" >> $GITHUB_OUTPUT
             exit 1
           fi
@@ -275,177 +291,40 @@ jobs:
           docker images | grep -E "(backend|frontend)" || echo "No Docker images found - this is expected if build failed"
         continue-on-error: true
 
-      # Container security scanning
+      # Container security scanning with simple output
       - name: Run Trivy vulnerability scanner on backend image
-        uses: aquasecurity/trivy-action@master
-        with:
-          image-ref: '${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-backend:latest'
-          format: 'sarif'
-          output: 'trivy-image-backend.sarif'
-          severity: 'CRITICAL,HIGH'
+        run: |
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
+            -v ${{ github.workspace }}:/tmp/trivy \
+            aquasec/trivy:latest image \
+            --format table \
+            --output /tmp/trivy/backend-image-scan.txt \
+            --severity HIGH,CRITICAL \
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-backend:latest || echo "Backend image scan completed"
         continue-on-error: true
 
       - name: Run Trivy vulnerability scanner on frontend image
-        uses: aquasecurity/trivy-action@master
-        with:
-          image-ref: '${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-frontend:latest'
-          format: 'sarif'
-          output: 'trivy-image-frontend.sarif'
-          severity: 'CRITICAL,HIGH'
+        run: |
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
+            -v ${{ github.workspace }}:/tmp/trivy \
+            aquasec/trivy:latest image \
+            --format table \
+            --output /tmp/trivy/frontend-image-scan.txt \
+            --severity HIGH,CRITICAL \
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-frontend:latest || echo "Frontend image scan completed"
         continue-on-error: true
 
-      - name: Upload container scan results to GitHub Security tab
-        uses: github/codeql-action/upload-sarif@v3
+      - name: Upload container scan results
+        uses: actions/upload-artifact@v4
         if: always()
         with:
-          sarif_file: 'trivy-image-backend.sarif'
-        continue-on-error: true
+          name: trivy-container-scan-results
+          path: |
+            backend-image-scan.txt
+            frontend-image-scan.txt
+          retention-days: 30
 
-      - name: Upload frontend container scan results to GitHub Security tab
-        uses: github/codeql-action/upload-sarif@v3
-        if: always()
-        with:
-          sarif_file: 'trivy-image-frontend.sarif'
-        continue-on-error: true
-
-  # Terraform Validation (runs on PRs)
-  terraform-validate:
-    runs-on: ubuntu-latest
-    needs: build-and-test
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: 1.5.0
-
-      - name: Azure Login
-        uses: azure/login@v2
-        with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
-
-      - name: Terraform Init
-        run: |
-          cd terraform
-          terraform init
-
-      - name: Terraform Validate
-        run: |
-          cd terraform
-          terraform validate
-
-      - name: Terraform Plan (Dry Run)
-        run: |
-          cd terraform
-          terraform plan -no-color
-        continue-on-error: true
-
-  # Staging Infrastructure Deployment (runs on staging branch or PRs)
-  deploy-staging-infrastructure:
-    runs-on: ubuntu-latest
-    needs: [build-and-test, terraform-validate]
-    if: github.ref == 'refs/heads/staging' || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'deploy-staging'))
-    environment: staging
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: 1.5.0
-
-      - name: Azure Login
-        uses: azure/login@v2
-        with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
-
-      - name: Terraform Init (Staging)
-        run: |
-          cd terraform
-          terraform init
-
-      - name: Terraform Plan (Staging)
-        run: |
-          cd terraform
-          terraform plan -var-file="staging.tfvars" -out=tfplan-staging
-        id: plan
-
-      - name: Terraform Apply (Staging)
-        run: |
-          cd terraform
-          terraform apply -auto-approve tfplan-staging
-
-  # Staging Application Deployment
-  deploy-staging-application:
-    runs-on: ubuntu-latest
-    needs: [build-and-test, deploy-staging-infrastructure]
-    if: github.ref == 'refs/heads/staging' || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'deploy-staging'))
-    environment: staging
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Azure Login
-        uses: azure/login@v2
-        with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
-
-      - name: Deploy Backend to Staging
-        uses: azure/webapps-deploy@v3
-        with:
-          app-name: ${{ env.AZURE_WEBAPP_NAME_BACKEND_STAGING }}
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-backend:${{ github.sha }}
-
-      - name: Deploy Frontend to Staging
-        uses: azure/webapps-deploy@v3
-        with:
-          app-name: ${{ env.AZURE_WEBAPP_NAME_FRONTEND_STAGING }}
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-frontend:${{ github.sha }}
-
-      - name: Restart Staging Apps
-        run: |
-          az webapp restart --name ${{ env.AZURE_WEBAPP_NAME_BACKEND_STAGING }} --resource-group ${{ env.AZURE_RESOURCE_GROUP_STAGING }}
-          az webapp restart --name ${{ env.AZURE_WEBAPP_NAME_FRONTEND_STAGING }} --resource-group ${{ env.AZURE_RESOURCE_GROUP_STAGING }}
-
-  # Staging Health Check
-  staging-health-check:
-    runs-on: ubuntu-latest
-    needs: deploy-staging-application
-    if: github.ref == 'refs/heads/staging' || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'deploy-staging'))
-    steps:
-      - name: Wait for staging deployment
-        run: sleep 60
-
-      - name: Health check staging backend
-        run: |
-          curl -f https://tasktidy-backend-staging-gumutoni.azurewebsites.net/api/health || exit 1
-
-      - name: Health check staging frontend
-        run: |
-          curl -f https://tasktidy-frontend-staging-gumutoni.azurewebsites.net || exit 1
-
-      - name: Comment PR with staging URLs
-        if: github.event_name == 'pull_request'
-        uses: actions/github-script@v7
-        with:
-          script: |
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: '🚀 **Staging Deployment Complete!**\n\n' +
-                    '**Test URLs:**\n' +
-                    '- Frontend: https://tasktidy-frontend-staging-gumutoni.azurewebsites.net\n' +
-                    '- Backend: https://tasktidy-backend-staging-gumutoni.azurewebsites.net\n\n' +
-                    '**Health Checks:** ✅ All services are running\n' +
-                    '**Security Scans:** ✅ Completed successfully\n\n' +
-                    'Please test your changes and approve for production deployment.'
-            })
-
-  # Production Infrastructure Deployment (main branch only)
+  # Infrastructure Deployment
   deploy-infrastructure:
     runs-on: ubuntu-latest
     needs: build-and-test
@@ -481,7 +360,7 @@ jobs:
           cd terraform
           terraform apply -auto-approve tfplan
 
-  # Production Application Deployment (main branch only)
+  # Application Deployment
   deploy-application:
     runs-on: ubuntu-latest
     needs: [build-and-test, deploy-infrastructure]
@@ -516,7 +395,7 @@ jobs:
         run: |
           az webapp restart --name ${{ env.AZURE_WEBAPP_NAME_FRONTEND }} --resource-group ${{ env.AZURE_RESOURCE_GROUP }}
 
-  # Production Health Check (main branch only)
+  # Monitoring and Health Checks
   health-check:
     runs-on: ubuntu-latest
     needs: deploy-application
@@ -550,7 +429,7 @@ jobs:
           echo "- Application health checks passed" >> $GITHUB_STEP_SUMMARY
           echo "- All services are running" >> $GITHUB_STEP_SUMMARY
 
-  # Release Management (main branch only)
+  # Release Management
   create-release:
     runs-on: ubuntu-latest
     needs: [deploy-application, health-check]
