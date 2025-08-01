@@ -1,0 +1,151 @@
+{
+  "dashboard": {
+    "name": "TaskTidy Application Monitoring",
+    "description": "Comprehensive monitoring dashboard for TaskTidy application",
+    "version": "1.0.0",
+    "panels": [
+      {
+        "id": "application-health",
+        "title": "Application Health",
+        "type": "status",
+        "metrics": [
+          {
+            "name": "Backend Health",
+            "endpoint": "https://tasktidy-backend-gumutoni.azurewebsites.net/api/health",
+            "expected_status": 200,
+            "check_interval": "30s"
+          },
+          {
+            "name": "Frontend Health",
+            "endpoint": "https://tasktidy-frontend-gumutoni.azurewebsites.net",
+            "expected_status": 200,
+            "check_interval": "30s"
+          }
+        ]
+      },
+      {
+        "id": "performance-metrics",
+        "title": "Performance Metrics",
+        "type": "graph",
+        "metrics": [
+          {
+            "name": "Response Time",
+            "unit": "ms",
+            "threshold": {
+              "warning": 1000,
+              "critical": 3000
+            }
+          },
+          {
+            "name": "Request Rate",
+            "unit": "req/s",
+            "threshold": {
+              "warning": 100,
+              "critical": 500
+            }
+          },
+          {
+            "name": "Error Rate",
+            "unit": "%",
+            "threshold": {
+              "warning": 5,
+              "critical": 10
+            }
+          }
+        ]
+      },
+      {
+        "id": "infrastructure",
+        "title": "Infrastructure Status",
+        "type": "status",
+        "metrics": [
+          {
+            "name": "Azure App Service Status",
+            "type": "azure_app_service",
+            "check_interval": "1m"
+          },
+          {
+            "name": "MongoDB Atlas Connection",
+            "type": "database_connection",
+            "check_interval": "1m"
+          },
+          {
+            "name": "Container Registry",
+            "type": "registry_health",
+            "check_interval": "5m"
+          }
+        ]
+      },
+      {
+        "id": "security-alerts",
+        "title": "Security Alerts",
+        "type": "alerts",
+        "metrics": [
+          {
+            "name": "Vulnerability Scans",
+            "type": "security_scan",
+            "check_interval": "1h"
+          },
+          {
+            "name": "Dependency Audits",
+            "type": "dependency_audit",
+            "check_interval": "6h"
+          },
+          {
+            "name": "Container Security",
+            "type": "container_security",
+            "check_interval": "1h"
+          }
+        ]
+      }
+    ],
+    "alerts": [
+      {
+        "id": "high-error-rate",
+        "name": "High Error Rate Alert",
+        "description": "Alert when error rate exceeds 10%",
+        "condition": "error_rate > 10",
+        "severity": "critical",
+        "notification": {
+          "email": ["admin@tasktidy.com"],
+          "slack": "#alerts"
+        }
+      },
+      {
+        "id": "service-down",
+        "name": "Service Down Alert",
+        "description": "Alert when any service is down",
+        "condition": "health_status != 'healthy'",
+        "severity": "critical",
+        "notification": {
+          "email": ["admin@tasktidy.com"],
+          "slack": "#alerts"
+        }
+      },
+      {
+        "id": "security-vulnerability",
+        "name": "Security Vulnerability Alert",
+        "description": "Alert when critical vulnerabilities are detected",
+        "condition": "vulnerability_severity == 'critical'",
+        "severity": "high",
+        "notification": {
+          "email": ["security@tasktidy.com"],
+          "slack": "#security"
+        }
+      }
+    ],
+    "logging": {
+      "level": "info",
+      "format": "json",
+      "outputs": [
+        {
+          "type": "file",
+          "path": "/var/log/tasktidy/app.log"
+        },
+        {
+          "type": "console"
+        }
+      ]
+    }
+  }
+} 
