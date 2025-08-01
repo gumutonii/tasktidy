@@ -64,7 +64,7 @@ function Login() {
           Do not have an account? <Link to="/register">Register here</Link>
         </p>
         <p>
-          This is for testing the deployment pipeline
+          This is for testing the deployment pipeline.
         </p>
       </form>
     </div>
