@@ -272,3 +272,10 @@ For detailed security documentation, see [Security Documentation](docs/SECURITY.
 - **Service Outages**: Check Azure App Service status and container health
 
 
+# Live URLs:
+            - Frontend: https://tasktidy-frontend-gumutoni.azurewebsites.net
+            - Backend: https://tasktidy-backend-gumutoni.azurewebsites.net
+            
+
+
+
